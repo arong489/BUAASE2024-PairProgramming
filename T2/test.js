@@ -1,5 +1,5 @@
 import assert from "assert";
-
+import mancalaResult from "./t2-c/mancalaResult.js";
 // Choose proper "import" depending on your PL.
 // import { mancalaResult } from "./t2-as/build/release.js";
 // import { mancala_result as mancalaResult } from "./t2_rust/pkg/t1_rust.js"

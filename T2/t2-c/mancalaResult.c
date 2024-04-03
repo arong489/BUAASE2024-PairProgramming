@@ -27,14 +27,14 @@ EMSCRIPTEN_KEEPALIVE int mancalaResult(int flag, int* seq, int size)
             index = (index + 1) % 14;
             if (index != forbidden) {
                 board[index]++;
-            }
+            } else value++;
         }
         // 后效检测，再次行动
         if (index == _SCORE_SLOT(flag)) {
             continue;
         }
         // 后效检测，己方空格
-        if (_IS_MINE_SLOT(flag, i) && board[index] == 1 && board[12 - index] != 0) {
+        if (_IS_MINE_SLOT(flag, index) && board[index] == 1 && board[12 - index] != 0) {
             board[_SCORE_SLOT(flag)] += board[index] + board[12 - index];
             board[index] = 0;
             board[12 - index] = 0;

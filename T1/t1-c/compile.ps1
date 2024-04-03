@@ -1,0 +1,1 @@
+emcc .\bocchiShutUp.c -o .\bocchiShutUp.asm --no-entry -sEXPORTED_FUNCTIONS="['bocchiShutUp']"

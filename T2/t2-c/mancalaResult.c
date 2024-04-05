@@ -42,8 +42,11 @@ EMSCRIPTEN_KEEPALIVE int mancalaResult(int flag, int* seq, int size)
         flag ^= 3;
     }
 
-    if (!(board[0] | board[1] | board[2] | board[3] | board[4] | board[5]) | !(board[7] | board[8] | board[9] | board[10] | board[11] | board[12])) {
-        // 游戏正好结束
+    unsigned int remain1 = board[0] + board[1] + board[2] + board[3] + board[4] + board[5];
+    unsigned int remain2 = board[7] + board[8] + board[9] + board[10] + board[11] + board[12];
+    if (remain1 == 0 || remain2 == 0){
+        board[6] += remain1;
+        board[13] += remain2;
         return (int)15000 + board[_SCORE_SLOT(first_move)] - board[_FORBIDDEN_SLOT(first_move)];
     }
     return (int)20000 + board[_SCORE_SLOT(first_move)];

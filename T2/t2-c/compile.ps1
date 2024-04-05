@@ -1,1 +1,1 @@
-emcc .\mancalaResult.c -o .\mancalaResult.wasm --no-entry -sEXPORTED_FUNCTIONS="['_mancalaResult']"
+emcc .\mancalaResult.c -o .\mancalaResult.js --no-entry -sEXPORTED_FUNCTIONS="['_mancalaResult']"

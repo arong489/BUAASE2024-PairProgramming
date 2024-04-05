@@ -1,0 +1,1 @@
+emcc mancalaBoard.c -o mancalaBoard.js --no-entry -sEXPORTED_FUNCTIONS="['_mancalaBoard']"

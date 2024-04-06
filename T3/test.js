@@ -1,17 +1,17 @@
 import assert from "assert";
 
 // Choose proper "import" depending on your PL.
-import { mancalaOperator as op1 } from "./t3-2-as/build/release.js";
+import {mancalaOperator as op1} from "./t3-2-c/mancalaOperator.js";
 // import { mancala_operator as op1 } from "./t3_2_rust/pkg/t3_2_rust.js"
 // [Write your own "import" for other PLs.]
 
 // Choose proper "import" depending on your PL.
-import { mancalaOperator as op2 } from "./t3-2-as-rival/build/release.js";
+import { mancala_operator as op2 } from "./t3_2_rust_rival/pkg/t3_2_rust.js";
 // import { mancala_operator as op2 } from "./t3_2_rust_rival/pkg/t3_2_rust.js"
 // [Write your own "import" for other PLs.]
 
 // Choose proper "import" depending on your PL.
-import { mancalaBoard as board } from "./t3-1-as/build/release.js";
+import { mancalaBoard as board } from "./t3-1-c/mancalaBoard.js";
 // import { mancala_board as board } from "./t3_1_rust/pkg/t3_1_rust.js"
 // [Write your own "import" for other PLs.]
 
@@ -30,12 +30,14 @@ do {
     if (operator == 1) {
         timeStamp = performance.now() * 1000;
         operation = op1(1, status);
+        console.log("op1: ", operation);
         op1Time += performance.now() * 1000 - timeStamp;
         operationSequence.push(operation);
         boardReturn = board(1, operationSequence, operationSequence.length);
     } else {
         timeStamp = performance.now() * 1000;
         operation = op2(2, status);
+        console.log("op2: ", operation);
         op2Time += performance.now() * 1000 - timeStamp;
         operationSequence.push(operation);
         boardReturn = board(2, operationSequence, operationSequence.length);

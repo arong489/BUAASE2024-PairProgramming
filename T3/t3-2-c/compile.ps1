@@ -1,0 +1,1 @@
+emcc mancalaOperator.c -o mancalaOperator.js --no-entry -sEXPORTED_FUNCTIONS="['_mancalaOperator']"

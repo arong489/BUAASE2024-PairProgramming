@@ -197,7 +197,7 @@ int mancalaOperator(int player, int* board)
         if (board[i]) {
             for (int j = 0; j < 14; j++)
                 board_copy[j] = board[j];
-            simulateMove(board_copy, strategy_slot);
+            simulateMove(strategy_slot, board_copy);
             temp_loss = getFinalScore(player ^ 3, board_copy, NULL, NULL, &defense_slot, &other_direct_get);
             temp_get = getFinalScore(player, board_copy, &strategy_slot, &my_combo, NULL, &my_direct_get);
 

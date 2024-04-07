@@ -8,14 +8,14 @@
 #define _OUTPUT_SLOT(slot) ((slot) < 6 ? (slot) + 11 : (slot) + 14)
 #define _REMAIN(player, board) ((player) == 1 ? board[0] + board[1] + board[2] + board[3] + board[4] + board[5] : board[7] + board[8] + board[9] + board[10] + board[11] + board[12])
 
-int _CONFIG_MAX_DEPTH = 16;
+int _CONFIG_MAX_DEPTH = 18;
 
 // 全局视角
 int my_right, my_left, op_right, op_left, player, my_score_slot, op_score_slot;
 // 公共临时变量
-int eval, my_remain, op_remain;
+int eval, my_remain, op_remain, temp_get, temp_loss, temp_dup;
 // 评估参数
-int max_direct_get = 0, min_direct_loss = 0, duplicate_move = 0;
+int max_direct_get = 0, min_direct_loss = 65535, duplicate_move = 0;
 
 // 我讨厌模拟
 int simulateMove(int index, int* dest_board, int* res_board)
@@ -38,20 +38,20 @@ int simulateMove(int index, int* dest_board, int* res_board)
     if ((player == 1 && index == 6) || (player == 2 && index == 13)) {
         return 1;
     }
-    if (dest_board[index] == 1 && ((player == 1 && index < 6) || (player == 2 && index > 6 && index != 13))) {
-        dest_board[index] += dest_board[index] + dest_board[12 - index];
+    if (dest_board[index] == 1 && ((player == 1 && index < 6) || (player == 2 && index > 6 && index != 13)) && dest_board[12 - index]) {
+        dest_board[index < 6 ? 6 : 13] += dest_board[index] + dest_board[12 - index];
         dest_board[12 - index] = dest_board[index] = 0;
     }
     return 0;
 }
 
-int defenseCheck(int* board)
+int directGet(int* board)
 {
-    int board_copy[14], ret_loss = 1, temp_loss;
+    int board_copy[14], ret_loss = 0, temp_loss = 0;
     for (int i = op_right; i >= op_left; i--) {
         if (board[i]) {
             if (simulateMove(i, board_copy, board)) {
-                temp_loss = defenseCheck(board_copy);
+                temp_loss = 1 + directGet(board_copy);
             } else {
                 temp_loss = board_copy[op_score_slot] - board[op_score_slot];
             }
@@ -98,31 +98,38 @@ int maxMinAlphaBeta(int* board, int alpha, int beta, char maximizing_flag, int m
                     eval = maxMinAlphaBeta(board_copy, alpha, beta, 1, max_depth - 1, NULL);
                 else
                     eval = maxMinAlphaBeta(board_copy, alpha, beta, 0, max_depth - 1, NULL);
-                if (eval > best_eval) {
-                    best_eval = eval;
-                    if (strategy_slot)
-                        *strategy_slot = i;
-                    // alpha-beta剪枝
-                    if (alpha < best_eval) {
-                        alpha = best_eval;
-                        if (beta <= alpha) {
-                            break;
+
+                if (!strategy_slot) {
+                    if (eval > best_eval) {
+                        best_eval = eval;
+                        // alpha-beta剪枝
+                        if (alpha < best_eval) {
+                            alpha = best_eval;
+                            if (beta <= alpha) {
+                                break;
+                            }
                         }
                     }
                 }
-                // design, 优先再次行动或者取子或者防止取子
-                else if (eval == best_eval && strategy_slot) {
-                    int temp_get = board_copy[my_score_slot] - board[my_score_slot];
-                    int temp_dup = temp_get==1&&(board_copy[(my_score_slot+1)%14]==board[(my_score_slot+1)%14]);
-                    int temp_loss = defenseCheck(board_copy);
+                // 顶层design, 优先再次行动或者取子或者防止取子
+                else {
+                    temp_get = board_copy[my_score_slot] - board[my_score_slot];
+                    temp_dup = temp_get && (board_copy[(my_score_slot + 1) % 14] == board[(my_score_slot + 1) % 14]);
+                    if (temp_dup)
+                        temp_get += directGet(board_copy);
+                    temp_loss = temp_dup ? 0 : directGet(board_copy);
 
-                    if (temp_loss < min_direct_loss) {
+                    if (eval > best_eval) {
+                        best_eval = eval;
                         *strategy_slot = i;
-                        min_direct_loss = temp_loss;
-                    }
-                    if (temp_get > max_direct_get) {
-                        *strategy_slot = i;
-                        max_direct_get = temp_get;
+                        if (alpha < best_eval) {
+                            alpha = best_eval;
+                        }
+                    } else if (eval == best_eval) {
+                        if (temp_get - temp_loss > max_direct_get) {
+                            max_direct_get = temp_get - temp_loss;
+                            *strategy_slot = i;
+                        }
                     }
                 }
             }
@@ -151,7 +158,7 @@ int maxMinAlphaBeta(int* board, int alpha, int beta, char maximizing_flag, int m
     return best_eval;
 }
 
-int mancalaOperator(int flag, int* board, int max_depth)
+int mancalaOperator(int flag, int* board)
 {
     // 初始化全局视角
     player = flag;
@@ -165,7 +172,7 @@ int mancalaOperator(int flag, int* board, int max_depth)
     max_direct_get = 0;
     min_direct_loss = 0;
     duplicate_move = 0;
-    _CONFIG_MAX_DEPTH = max_depth;
+    // _CONFIG_MAX_DEPTH = max_depth;
     int ret_strategy_slot;
     maxMinAlphaBeta(board, -65536, 65536, 1, _CONFIG_MAX_DEPTH, &ret_strategy_slot);
     return _OUTPUT_SLOT(ret_strategy_slot);

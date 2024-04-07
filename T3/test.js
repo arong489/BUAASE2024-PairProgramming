@@ -30,14 +30,12 @@ do {
     if (operator == 1) {
         timeStamp = performance.now() * 1000;
         operation = op1(1, status);
-        console.log("op1: ", operation);
         op1Time += performance.now() * 1000 - timeStamp;
         operationSequence.push(operation);
         boardReturn = board(1, operationSequence, operationSequence.length);
     } else {
         timeStamp = performance.now() * 1000;
         operation = op2(2, status);
-        console.log("op2: ", operation);
         op2Time += performance.now() * 1000 - timeStamp;
         operationSequence.push(operation);
         boardReturn = board(2, operationSequence, operationSequence.length);

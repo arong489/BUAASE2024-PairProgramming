@@ -7,208 +7,166 @@
 #define _RIGHT_SLOT(player) ((player) == 1 ? 5 : 12)
 #define _OUTPUT_SLOT(slot) ((slot) < 6 ? (slot) + 11 : (slot) + 14)
 #define _REMAIN(player, board) ((player) == 1 ? board[0] + board[1] + board[2] + board[3] + board[4] + board[5] : board[7] + board[8] + board[9] + board[10] + board[11] + board[12])
-#define _CONFIG_FINAL_PHASE_STEP 5
-#define _CONFIG_FINAL_PHASE_CANCEL 4
+
+int _CONFIG_MAX_DEPTH = 16;
+
+// 全局视角
+int my_right, my_left, op_right, op_left, player, my_score_slot, op_score_slot;
+// 公共临时变量
+int eval, my_remain, op_remain;
+// 评估参数
+int max_direct_get = 0, min_direct_loss = 0, duplicate_move = 0;
 
 // 我讨厌模拟
-void simulateMove(int index, int* board)
+int simulateMove(int index, int* dest_board, int* res_board)
 {
-    int v = board[index];
-    int forbidden_slot = index < 6 ? 13 : 6;
-    board[index] = 0;
+    int v = res_board[index];
+    int forbidden_slot = index < 6 ? 13 : 6, player = index < 6 ? 1 : 2;
+    for (unsigned int _ = 0; _ < 14; _++) {
+        dest_board[_] = res_board[_];
+    }
+    dest_board[index] = 0;
     while (v--) {
         index = (index + 1) % 14;
         if (index != forbidden_slot) {
-            board[index]++;
+            dest_board[index] = res_board[index] + 1;
         } else {
+            dest_board[index] = res_board[index];
             v++;
         }
     }
+    if ((player == 1 && index == 6) || (player == 2 && index == 13)) {
+        return 1;
+    }
+    if (dest_board[index] == 1 && ((player == 1 && index < 6) || (player == 2 && index > 6 && index != 13))) {
+        dest_board[index] += dest_board[index] + dest_board[12 - index];
+        dest_board[12 - index] = dest_board[index] = 0;
+    }
+    return 0;
 }
 
-// 摸鱼评估.ing
-int calculateDelay(int player, int* board)
+int defenseCheck(int* board)
 {
-    int times = 0;
-    int my_right = _RIGHT_SLOT(player), my_left = _LEFT_SLOT(player);
-    int board_copy[14];
-    for (int i = 0; i < 14; i++)
-        board_copy[i] = board[i];
-    for (int i = my_right, check = 1; i >= my_left; i--, check++) {
-        if (board_copy[i] <= check && board_copy[i]) {
-            times += board_copy[i] != check;
-            simulateMove(i, board_copy);
-            i = my_right;
-            check = 1;
-        }
-    }
-    return times;
-}
-
-// 纯良无害的弱小函数
-// int getScore(int player, int* board, int* max_index, char change_enable)
-// {
-//     //Note: 考虑再次行动取子
-//     int my_right = _RIGHT_SLOT(player), my_left = _LEFT_SLOT(player);
-//     int end_slot, score_slot = _SCORE_SLOT(player), forbidden_slot = _FORBIDDEN_SLOT(player);
-//     int max_get = 0, temp_max_index;
-//
-//     for (int i = my_right; i >= my_left; i--) {
-//
-//         end_slot = (i + board[i]);
-//         if (forbidden_slot > i && forbidden_slot <= end_slot)
-//             end_slot++;
-//         end_slot %= 14;
-//
-//         if (_IS_MINE_SLOT(player, end_slot) && end_slot != score_slot && board[end_slot] == 0 && board[12 - end_slot]) {
-//             if (max_get < board[12 - end_slot] + 1) {
-//                 max_get = board[12 - end_slot] + 1;
-//                 temp_max_index = i;
-//             }
-//         }
-//     }
-//     if (max_index)
-//         *max_index = temp_max_index;
-//     if (change_enable) {
-//         simulateMove(temp_max_index, board);
-//     }
-//     return max_get;
-// }
-
-//! 来点丝滑小连招, this is a super function
-int getFinalScore(int player, int* board, int* strategy, int* combo, int* defense_slot, int* direct_get)
-{
-    int my_right = _RIGHT_SLOT(player), my_left = _LEFT_SLOT(player), score_slot = _SCORE_SLOT(player), forbidden_slot = _FORBIDDEN_SLOT(player);
-    int end_slot;
-    int max_get = 0, temp_strategy, temp_max_final_score = 0, temp_comb = 0, ret_comb = 0, temp_defense_slot = -1, temp_direct_get;
-    //* 尝试直接取子
-    for (int i = my_right; i >= my_left; i--) {
-        if (board[i] == 0)
-            continue;
-        end_slot = (i + board[i]);
-        if (forbidden_slot > i && forbidden_slot <= end_slot)
-            end_slot++;
-        end_slot %= 14;
-
-        if (_IS_MINE_SLOT(player, end_slot) && end_slot != score_slot && board[end_slot] == 0 && board[12 - end_slot]) {
-            if (max_get < board[12 - end_slot] + 1) {
-                max_get = board[12 - end_slot] + 1;
-                temp_strategy = i;
-                temp_defense_slot = 12 - end_slot;
-                temp_direct_get = board[12 - end_slot];
-            }
-            temp_comb = 1;
-        }
-    }
-
-    int board_copy[14], loss_score;
-    for (int i = 0; i < 14; i++)
-        board_copy[i] = board[i];
-
-    if (max_get)
-        simulateMove(temp_strategy, board);
-
-    for (int i = my_right, check = 1; i >= my_left; i--, check++) {
-        //* 尝试再次行动
-        if (board_copy[i] == check) {
-            temp_max_final_score = 1;
-            ret_comb++;
-            simulateMove(i, board_copy);
-            temp_max_final_score += getFinalScore(player, board_copy, strategy, &ret_comb, defense_slot, direct_get);
-            if (temp_max_final_score > max_get) {
-                max_get = temp_max_final_score;
-                temp_strategy = i;
-                temp_comb = ret_comb;
-                for (int j = 0; j < 14; j++)
-                    board[j] = board_copy[j];
-            }
-            break;
-        }
-    }
-
-    if (strategy)
-        *strategy = temp_strategy;
-    if (combo)
-        *combo += temp_comb;
-    if (defense_slot)
-        *defense_slot = temp_defense_slot;
-    if (direct_get)
-        *direct_get = temp_direct_get;
-
-    return max_get;
-}
-
-int mancalaOperator(int player, int* board)
-{
-    int my_right = _RIGHT_SLOT(player), my_left = _LEFT_SLOT(player);
-    int my_delay = calculateDelay(player, board), other_delay = calculateDelay(player ^ 3, board);
-    int score_slot = _SCORE_SLOT(player), forbidden_slot = _FORBIDDEN_SLOT(player);
-    //* 残局拖延
-    if (my_delay - other_delay > _CONFIG_FINAL_PHASE_STEP) {
-        for (int i = my_right, check = 1; i >= my_left; i--, check++) {
-            if (board[i] < check && board[i]) {
-                //* 残局防取子
-                int board_copy[14], loss_score;
-                for (int j = 0; j < 14; j++)
-                    board_copy[j] = board[j];
-                simulateMove(i, board_copy);
-                loss_score = getFinalScore(player ^ 3, board_copy, NULL, NULL, NULL, NULL);
-                if (loss_score && _REMAIN(player ^ 3, board_copy) + board_copy[forbidden_slot] > board_copy[score_slot] + _REMAIN(player, board_copy) + _CONFIG_FINAL_PHASE_CANCEL) {
-                    break;
-                } else {
-                    return _OUTPUT_SLOT(i);
-                }
-            } else if (board[i] == check && board[i]) {
-                return _OUTPUT_SLOT(i);
-            }
-        }
-    }
-
-    int strategy_slot, my_combo = 0, other_combo = 0, defense_slot, my_direct_get, other_direct_get;
-    int board_copy[14];
-    for (int i = 0; i < 14; i++)
-        board_copy[i] = board[i];
-
-    int max_get = getFinalScore(player, board_copy, &strategy_slot, &my_combo, NULL, &my_direct_get);
-    int max_loss = getFinalScore(player ^ 3, board_copy, NULL, &other_combo, &defense_slot, &other_direct_get);
-    if (my_combo > 1) {
-        return _OUTPUT_SLOT(strategy_slot);
-    }
-    if (my_combo == 1) {
-        if (my_direct_get == 0) {
-            return _OUTPUT_SLOT(strategy_slot);
-        }
-        if (my_direct_get > other_direct_get || (my_direct_get == other_direct_get && player == 1)) {
-            return _OUTPUT_SLOT(strategy_slot);
-        } else {
-            return _OUTPUT_SLOT(defense_slot);
-        }
-    }
-    // combo为0
-    // 直接防守
-    if (defense_slot != -1) {
-        return _OUTPUT_SLOT(defense_slot);
-    }
-    max_loss = 48;
-    max_get = 0;
-    int temp_loss, temp_get;
-    // 不知道要干嘛的地方
-    for (int i = my_right; i >= my_left; i--) {
+    int board_copy[14], ret_loss = 1, temp_loss;
+    for (int i = op_right; i >= op_left; i--) {
         if (board[i]) {
-            for (int j = 0; j < 14; j++)
-                board_copy[j] = board[j];
-            simulateMove(strategy_slot, board_copy);
-            temp_loss = getFinalScore(player ^ 3, board_copy, NULL, NULL, &defense_slot, &other_direct_get);
-            temp_get = getFinalScore(player, board_copy, &strategy_slot, &my_combo, NULL, &my_direct_get);
-
-            if (max_loss < temp_loss) {
-                max_loss = temp_loss;
-                strategy_slot = i;
-            } else if (max_loss == temp_loss)
-            {
-                strategy_slot = i;
+            if (simulateMove(i, board_copy, board)) {
+                temp_loss = defenseCheck(board_copy);
+            } else {
+                temp_loss = board_copy[op_score_slot] - board[op_score_slot];
+            }
+            if (temp_loss > ret_loss) {
+                ret_loss = temp_loss;
             }
         }
     }
-    return _OUTPUT_SLOT(strategy_slot);
+    return ret_loss;
+}
+
+int evaluate(int* board)
+{
+    return board[my_score_slot] - board[op_score_slot];
+}
+
+// maxMin算法
+int maxMinAlphaBeta(int* board, int alpha, int beta, char maximizing_flag, int max_depth, int* strategy_slot)
+{
+    if (max_depth == 0) {
+        return evaluate(board);
+    }
+    my_remain = _REMAIN(player, board);
+    op_remain = _REMAIN(player ^ 3, board);
+
+    if (my_remain == 0 || op_remain == 0) {
+        // 结局,结算
+        board[_SCORE_SLOT(player)] += my_remain;
+        board[_FORBIDDEN_SLOT(player)] += op_remain;
+        board[0] = board[1] = board[2] = board[3] = board[4] = board[5] = 0;
+        board[7] = board[8] = board[9] = board[10] = board[11] = board[12] = 0;
+        return evaluate(board);
+    }
+
+    int board_copy[14], best_eval;
+
+    if (maximizing_flag) {
+        best_eval = -65536;
+        // 我方行动
+        for (int i = my_right; i >= my_left; i--) {
+            if (board[i]) {
+                if (simulateMove(i, board_copy, board))
+                    // 连续行动
+                    eval = maxMinAlphaBeta(board_copy, alpha, beta, 1, max_depth - 1, NULL);
+                else
+                    eval = maxMinAlphaBeta(board_copy, alpha, beta, 0, max_depth - 1, NULL);
+                if (eval > best_eval) {
+                    best_eval = eval;
+                    if (strategy_slot)
+                        *strategy_slot = i;
+                    // alpha-beta剪枝
+                    if (alpha < best_eval) {
+                        alpha = best_eval;
+                        if (beta <= alpha) {
+                            break;
+                        }
+                    }
+                }
+                // design, 优先再次行动或者取子或者防止取子
+                else if (eval == best_eval && strategy_slot) {
+                    int temp_get = board_copy[my_score_slot] - board[my_score_slot];
+                    int temp_dup = temp_get==1&&(board_copy[(my_score_slot+1)%14]==board[(my_score_slot+1)%14]);
+                    int temp_loss = defenseCheck(board_copy);
+
+                    if (temp_loss < min_direct_loss) {
+                        *strategy_slot = i;
+                        min_direct_loss = temp_loss;
+                    }
+                    if (temp_get > max_direct_get) {
+                        *strategy_slot = i;
+                        max_direct_get = temp_get;
+                    }
+                }
+            }
+        }
+    } else {
+        best_eval = 65536;
+        // 对手行动
+        for (int i = op_right; i >= op_left; i--) {
+            if (board[i]) {
+                if (simulateMove(i, board_copy, board))
+                    eval = maxMinAlphaBeta(board_copy, alpha, beta, 0, max_depth - 1, NULL);
+                else
+                    eval = maxMinAlphaBeta(board_copy, alpha, beta, 1, max_depth - 1, NULL);
+                if (eval < best_eval) {
+                    best_eval = eval;
+                    if (beta > best_eval) {
+                        beta = best_eval;
+                        if (alpha >= beta) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return best_eval;
+}
+
+int mancalaOperator(int flag, int* board, int max_depth)
+{
+    // 初始化全局视角
+    player = flag;
+    my_right = _RIGHT_SLOT(player);
+    my_left = _LEFT_SLOT(player);
+    op_right = _RIGHT_SLOT(player ^ 3);
+    op_left = _LEFT_SLOT(player ^ 3);
+    my_score_slot = _SCORE_SLOT(player);
+    op_score_slot = _FORBIDDEN_SLOT(player);
+    // 初始化评估参数
+    max_direct_get = 0;
+    min_direct_loss = 0;
+    duplicate_move = 0;
+    _CONFIG_MAX_DEPTH = max_depth;
+    int ret_strategy_slot;
+    maxMinAlphaBeta(board, -65536, 65536, 1, _CONFIG_MAX_DEPTH, &ret_strategy_slot);
+    return _OUTPUT_SLOT(ret_strategy_slot);
 }

@@ -44,7 +44,7 @@ export function mancalaOperator(flag, seq) {
     heap[start + i] = seq[i];
   }
 
-  const result = wasmInstance.exports.mancalaOperator(flag, ptr);
+  const result = wasmInstance.exports.mancalaOperator(flag, ptr, 18);
 
   return result;
 }

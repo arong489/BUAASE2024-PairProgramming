@@ -50,8 +50,8 @@ export function mancalaBoard(flag, seq, size) {
 
   wasmInstance.exports.stackRestore(savedStack);
   
-  console.log(seq[seq.length - 1])
-  console.log(ret.slice(7, 13).reverse(),"\n    ",ret[13],"            ", ret[6],'\n',ret.slice(0, 6));
+  // console.log(seq[seq.length - 1])
+  // console.log(ret.slice(7, 13).reverse(),"\n    ",ret[13],"            ", ret[6],'\n',ret.slice(0, 6));
 
   return ret;
 }
